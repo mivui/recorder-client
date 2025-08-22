@@ -18,7 +18,7 @@ npm i recorder-client
 | :-------------: | :-----------------------: | :-------------------------------------------------------------------------: | :-------: |
 |   sampleRate    |          number           |                             audio sampling rate                             | undefined |
 |    chunkSize    |          number           | number of samples in the audio data block (length of the audio buffer zone) | undefined |
-|   ignoreMute    |          boolean          |                             ignore mute or not                              | undefined |
+|   ignoreMute    |          boolean          |                                 ignore mute                                 | undefined |
 | ondataavailable | (pcm: Int16Array) => void |                            real-time audio data                             | undefined |
 |     onpause     |        () => void         |                                 pause event                                 | undefined |
 |    onresume     |        () => void         |                                resume event                                 | undefined |
@@ -31,11 +31,12 @@ npm i recorder-client
 
 ### Helper
 
-| property |                       type                       |              description              |
-| :------: | :----------------------------------------------: | :-----------------------------------: |
-| pcmMerge | (arrays: Int16Array[])=> Int16Array<ArrayBuffer> |      merge multiple pcm streams       |
-| pcmToWav |   (pcm: Int16Array, sampleRate: number)=> Blob   |          convert PCM to WAV           |
-| parseWav |          (buffer: ArrayBuffer)=> object          | obtain information about the wav file |
+|  property  |                       type                       |              description              |
+| :--------: | :----------------------------------------------: | :-----------------------------------: |
+|  pcmMerge  | (pcms: Int16Array[]) => Int16Array<ArrayBuffer>  |      merge multiple pcm streams       |
+|  pcmToWav  |  (pcm: Int16Array, sampleRate: number) => Blob   |          convert PCM to WAV           |
+|  parseWav  |         (buffer: ArrayBuffer) => object          | obtain information about the wav file |
+| isSpeaking | (pcm: Int16Array, sampleRate: number) => boolean | check if there is any input of audio  |
 
 ### Example
 
@@ -115,5 +116,20 @@ interface Wav {
 const getWav = async (file: File) => {
   const buffer = await file.arrayBuffer();
   const wav: Wav = Recorder.parseWav(buffer);
+};
+```
+
+> isSpeaking
+
+```ts
+import { Recorder } from 'recorder-client';
+
+const recorder = new Recorder({
+  sampleRate: 16000,
+  chunkSize: 1900,
+});
+
+recorder.ondataavailable = (pcm) => {
+  const flag = Recorder.isSpeaking(pcm, 16000);
 };
 ```
