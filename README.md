@@ -14,20 +14,25 @@ npm i recorder-client
 
 ### API
 
-|    property     |           type            |                                 description                                 |  default  |
-| :-------------: | :-----------------------: | :-------------------------------------------------------------------------: | :-------: |
-|   sampleRate    |          number           |                             audio sampling rate                             | undefined |
-|    chunkSize    |          number           | number of samples in the audio data block (length of the audio buffer zone) | undefined |
-|   ignoreMute    |          boolean          |                                 ignore mute                                 | undefined |
-| ondataavailable | (pcm: Int16Array) => void |                            real-time audio data                             | undefined |
-|     onpause     |        () => void         |                                 pause event                                 | undefined |
-|    onresume     |        () => void         |                                resume event                                 | undefined |
-|     onstart     |        () => void         |                                 start event                                 | undefined |
-|     onstop      |    (wav: Blob) => void    |                                 stop event                                  | undefined |
-|      pause      |        () => void         |                                 audio pause                                 | undefined |
-|     resume      |        () => void         |                                audio resume                                 | undefined |
-|      start      |        () => void         |                                 audio start                                 | undefined |
-|      stop       |        () => void         |                                 audio stop                                  | undefined |
+|  property  |  type   |                                 description                                 |  default  |
+| :--------: | :-----: | :-------------------------------------------------------------------------: | :-------: |
+| sampleRate | number  |                             audio sampling rate                             | undefined |
+| chunkSize  | number  | number of samples in the audio data block (length of the audio buffer zone) | undefined |
+| ignoreMute | boolean |                                 ignore mute                                 | undefined |
+
+### Event
+
+|    property     |           type            |     description      |
+| :-------------: | :-----------------------: | :------------------: |
+| ondataavailable | (pcm: Int16Array) => void | real-time audio data |
+|     onpause     |        () => void         |     pause event      |
+|    onresume     |        () => void         |     resume event     |
+|     onstart     |        () => void         |     start event      |
+|     onstop      |    (wav: Blob) => void    |      stop event      |
+|      pause      |        () => void         |     audio pause      |
+|     resume      |        () => void         |     audio resume     |
+|      start      |        () => void         |     audio start      |
+|      stop       |        () => void         |      audio stop      |
 
 ### Helper
 
