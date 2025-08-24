@@ -28,7 +28,7 @@ npm i recorder-client
 |     onpause     |        () => void         |     pause event      |
 |    onresume     |        () => void         |     resume event     |
 |     onstart     |        () => void         |     start event      |
-|     onstop      |    (wav: Blob) => void    |      stop event      |
+|     onstop      | (pcm: Int16Array) => void |      stop event      |
 |      pause      |        () => void         |     audio pause      |
 |     resume      |        () => void         |     audio resume     |
 |      start      |        () => void         |     audio start      |
@@ -36,12 +36,12 @@ npm i recorder-client
 
 ### Helper
 
-|  property  |                       type                       |              description              |
-| :--------: | :----------------------------------------------: | :-----------------------------------: |
-|  pcmMerge  | (pcms: Int16Array[]) => Int16Array<ArrayBuffer>  |      merge multiple pcm streams       |
-|  pcmToWav  |  (pcm: Int16Array, sampleRate: number) => Blob   |          convert PCM to WAV           |
-|  parseWav  |         (buffer: ArrayBuffer) => object          | obtain information about the wav file |
-| isSpeaking | (pcm: Int16Array, sampleRate: number) => boolean | check if there is any input of audio  |
+| property |                       type                       |              description              |
+| :------: | :----------------------------------------------: | :-----------------------------------: |
+| pcmMerge |        (pcms: Int16Array[]) => Int16Array        |      merge multiple pcm streams       |
+| pcmToWav |  (pcm: Int16Array, sampleRate: number) => Blob   |          convert PCM to WAV           |
+| parseWav |         (buffer: ArrayBuffer) => object          | obtain information about the wav file |
+| isSpeak  | (pcm: Int16Array, sampleRate: number) => boolean | check if there is any input of audio  |
 
 ### Example
 
@@ -58,7 +58,7 @@ const recorder = new Recorder({
 recorder.onstart = () => {};
 recorder.onpause = () => {};
 recorder.onresume = () => {};
-recorder.onstop = (blob) => {};
+recorder.onstop = (pcm) => {};
 recorder.ondataavailable = (pcm) => {};
 
 const onClick = () => {
@@ -86,7 +86,7 @@ recorder.ondataavailable = (pcm) => {
 };
 
 const onMerge = () => {
-  return Recorder.pcmMerge(pcms);
+  const data = Recorder.pcmMerge(pcms);
 };
 ```
 
@@ -100,7 +100,7 @@ const recorder = new Recorder({
   chunkSize: 1900,
 });
 
-recorder.ondataavailable = (pcm) => {
+recorder.onstop = (pcm) => {
   const blob = pcmToWav(pcm, 16000);
 };
 ```
@@ -124,7 +124,7 @@ const getWav = async (file: File) => {
 };
 ```
 
-> isSpeaking
+> isSpeak
 
 ```ts
 import { Recorder } from 'recorder-client';
@@ -135,6 +135,6 @@ const recorder = new Recorder({
 });
 
 recorder.ondataavailable = (pcm) => {
-  const flag = Recorder.isSpeaking(pcm, 16000);
+  const flag = Recorder.isSpeak(pcm, 16000);
 };
 ```

@@ -76,7 +76,7 @@ export class Recorder {
   public onpause?: () => void;
   public onresume?: () => void;
   public onstart?: () => void;
-  public onstop?: (blob: Blob) => void;
+  public onstop?: (data: Int16Array) => void;
 
   constructor(options: RecorderConstructor) {
     this._options = options;
@@ -103,7 +103,7 @@ export class Recorder {
       const { e, data } = event.data;
       if (e === 'data') {
         if (ignoreMute) {
-          if (Recorder.isSpeaking(data, sampleRate)) {
+          if (Recorder.isSpeak(data, sampleRate)) {
             this._pcmData.push(data);
             this.ondataavailable?.(data);
           }
@@ -137,7 +137,7 @@ export class Recorder {
     this._source = undefined;
     this._workletNode = undefined;
     this._audioContext = undefined;
-    this.onstop?.(Recorder.pcmToWav(Recorder.pcmMerge(this._pcmData), this._options.sampleRate));
+    this.onstop?.(Recorder.pcmMerge(this._pcmData));
     this._pcmData = [];
   }
 
@@ -154,7 +154,7 @@ export class Recorder {
       offset += arr.length;
     }
 
-    return merged;
+    return merged as Int16Array;
   }
 
   public static pcmToWav(data: Int16Array, sampleRate: number) {
@@ -201,7 +201,7 @@ export class Recorder {
     return wavBlob;
   }
 
-  public static isSpeaking(int16Array: Int16Array, sampleRate: number) {
+  public static isSpeak(int16Array: Int16Array, sampleRate: number) {
     const frameSize = Math.floor(0.02 * sampleRate); // 20ms 帧长度
     const threshold = 0.01; // 能量阈值（需根据实际调整）
     let speakingFrames = 0;
