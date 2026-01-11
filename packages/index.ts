@@ -58,10 +58,69 @@ registerProcessor('audio-processor', AudioProcessor);
   return URL.createObjectURL(blob);
 }
 
+/** 预定义的VAD场景类型 */
+export type VadScene =
+  | 'extreme-noise' // 极端噪声环境（工厂/演唱会）
+  | 'high-noise' // 高噪声环境（地铁/马路）
+  | 'live-stream' // 直播场景（兼顾清晰度和抗噪）;
+  | 'normal-indoor' // 普通室内（办公室/客厅）
+  | 'quiet-studio' // 安静录音棚/卧室
+  | 'voice-assistant'; // 直播场景（兼顾清晰度和抗噪）;
+
+/** VAD配置选项类型 */
+export interface VadOptions {
+  noiseCoefficient: number; // 动态阈值系数
+  voiceRatioThreshold: number; // 语音帧占比阈值
+  noiseFrameCount: number; // 背景噪声计算帧数
+  frameDurationMs?: number; // 单帧时长（默认20ms）
+}
+
+export type Vad = Partial<VadOptions> | VadScene;
+
+/** 场景化预设配置表 */
+const SCENE_PRESETS: Record<VadScene, VadOptions> = {
+  'quiet-studio': {
+    noiseCoefficient: 1.6,
+    voiceRatioThreshold: 0.4,
+    noiseFrameCount: 3,
+    frameDurationMs: 20,
+  },
+  'normal-indoor': {
+    noiseCoefficient: 2.3,
+    voiceRatioThreshold: 0.5,
+    noiseFrameCount: 5,
+    frameDurationMs: 20,
+  },
+  'high-noise': {
+    noiseCoefficient: 3.8,
+    voiceRatioThreshold: 0.6,
+    noiseFrameCount: 8,
+    frameDurationMs: 15, // 更短的帧提升实时性
+  },
+  'extreme-noise': {
+    noiseCoefficient: 4.5,
+    voiceRatioThreshold: 0.7,
+    noiseFrameCount: 10,
+    frameDurationMs: 10, // 极短帧快速响应噪声变化
+  },
+  'voice-assistant': {
+    noiseCoefficient: 2.0,
+    voiceRatioThreshold: 0.3, // 低占比触发，提升唤醒灵敏度
+    noiseFrameCount: 2,
+    frameDurationMs: 20,
+  },
+  'live-stream': {
+    noiseCoefficient: 2.8,
+    voiceRatioThreshold: 0.45,
+    noiseFrameCount: 6,
+    frameDurationMs: 20,
+  },
+};
+
 export interface RecorderConstructor {
   sampleRate: number; //音频采样率
   chunkSize: number; //音频数据块的样本数（即音频缓冲区的长度）
-  ignoreMute?: boolean; //是否忽略静音
+  vad?: Vad; //VAD场景类型
 }
 
 export class Recorder {
@@ -84,7 +143,7 @@ export class Recorder {
   }
 
   public async start() {
-    const { sampleRate, chunkSize, ignoreMute } = this._options;
+    const { sampleRate, chunkSize, vad } = this._options;
     this._stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
     });
@@ -102,8 +161,8 @@ export class Recorder {
     this._workletNode.port.onmessage = (event) => {
       const { e, data } = event.data;
       if (e === 'data') {
-        if (ignoreMute) {
-          if (Recorder.isSpeak(data, sampleRate)) {
+        if (vad) {
+          if (Recorder.isSpeak(data, sampleRate, vad)) {
             this._pcmData.push(data);
             this.ondataavailable?.(data);
           }
@@ -201,31 +260,69 @@ export class Recorder {
     return wavBlob;
   }
 
-  public static isSpeak(int16Array: Int16Array, sampleRate: number) {
-    const frameSize = Math.floor(0.02 * sampleRate); // 20ms 帧长度
-    const threshold = 0.01; // 能量阈值（需根据实际调整）
-    let speakingFrames = 0;
-    const frameCount = Math.ceil(int16Array.length / frameSize);
+  /**
+   * 语音活动检测（VAD）：判断音频片段是否包含说话内容
+   * @param int16Array 原始PCM音频数据（16位整型）
+   * @param sampleRate 采样率（如16000、44100）
+   * @param vad 场景类型或自定义配置
+   * @returns 是否检测到语音
+   */
+  public static isSpeak(int16Array: Int16Array, sampleRate: number, vad?: Vad): boolean {
+    // 解析配置：场景预设优先，自定义配置可覆盖
+    let options: VadOptions;
+    if (typeof vad === 'string') {
+      options = { ...SCENE_PRESETS[vad] };
+    } else {
+      // 默认使用普通室内场景配置，再合并自定义选项
+      options = { ...SCENE_PRESETS['normal-indoor'], ...vad };
+    }
 
-    for (let i = 0; i < frameCount; i++) {
+    // 计算帧长度（处理自定义帧时长）
+    const frameSize = Math.floor(((options.frameDurationMs ?? 20) * sampleRate) / 1000);
+    const totalFrameCount = Math.ceil(int16Array.length / frameSize);
+    let speakingFrameCount = 0;
+    let noiseRmsSum = 0;
+
+    // --------------------------
+    // 1. 计算背景噪声基准RMS
+    // --------------------------
+    const actualNoiseFrameCount = Math.min(options.noiseFrameCount, totalFrameCount);
+    for (let i = 0; i < actualNoiseFrameCount; i++) {
       const start = i * frameSize;
       const end = Math.min(start + frameSize, int16Array.length);
-      const frame = int16Array.slice(start, end);
+      const frame = int16Array.subarray(start, end);
 
       let sum = 0;
       for (let j = 0; j < frame.length; j++) {
-        const sample = frame[j] / 32768; // 归一化到 [-1, 1]
+        const sample = frame[j] / 32768; // 归一化到[-1, 1]
         sum += sample * sample;
       }
-      const rms = Math.sqrt(sum / frame.length);
+      noiseRmsSum += Math.sqrt(sum / frame.length);
+    }
+    const baseNoiseRms = noiseRmsSum / actualNoiseFrameCount;
+    const dynamicThreshold = baseNoiseRms * options.noiseCoefficient;
 
-      if (rms > threshold) {
-        speakingFrames++;
+    // --------------------------
+    // 2. 逐帧检测语音
+    // --------------------------
+    for (let i = 0; i < totalFrameCount; i++) {
+      const start = i * frameSize;
+      const end = Math.min(start + frameSize, int16Array.length);
+      const frame = int16Array.subarray(start, end);
+
+      let sum = 0;
+      for (let j = 0; j < frame.length; j++) {
+        const sample = frame[j] / 32768;
+        sum += sample * sample;
+      }
+      const frameRms = Math.sqrt(sum / frame.length);
+
+      if (frameRms > dynamicThreshold) {
+        speakingFrameCount++;
       }
     }
-
-    // 如果超过 50% 的帧有语音，认为在说话
-    return speakingFrames / frameCount > 0.5;
+    // 3. 判断是否超过语音占比阈值
+    return speakingFrameCount / totalFrameCount > options.voiceRatioThreshold;
   }
 
   public static parseWav(buffer: ArrayBuffer) {
