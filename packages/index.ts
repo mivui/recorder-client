@@ -1,4 +1,4 @@
-//参考 AudioWorkletProcessor 单声道 音频采样率是16000 使用pcm 1.9kb发送一次数据
+//AudioWorkletProcessor 单声道 音频采样率是16000 使用pcm 1.9kb发送一次数据
 function audioProcessorJs() {
   const code = `
 class AudioProcessor extends AudioWorkletProcessor {
