@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "esnext",
     "useDefineForClassFields": true,
     "module": "esnext",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     /* Node mode */
-    "moduleResolution": "Node",
+    "moduleResolution":"bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
@@ -19,10 +19,8 @@
     /* Path config */
     // "outDir": "temp",
     "sourceMap": false,
-    "baseUrl": ".",
-    "rootDir": "./packages",
     "types": ["vitest/globals"]
   },
-  "include": ["packages/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

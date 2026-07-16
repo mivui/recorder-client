@@ -1,4 +1,3 @@
-//AudioWorkletProcessor 单声道 音频采样率是16000 使用pcm 1.9kb发送一次数据
 function audioProcessorJs() {
   const code = `
 class AudioProcessor extends AudioWorkletProcessor {
@@ -128,51 +127,54 @@ export class Recorder {
   private _audioContext?: AudioContext;
   private _source?: MediaStreamAudioSourceNode;
   private _workletNode?: AudioWorkletNode;
-  private _pcmData: Int16Array[];
   private readonly _options: RecorderConstructor;
 
   public ondataavailable?: (data: Int16Array) => void;
   public onpause?: () => void;
   public onresume?: () => void;
   public onstart?: () => void;
-  public onstop?: (data: Int16Array) => void;
+  public onstop?: () => void;
 
   constructor(options: RecorderConstructor) {
     this._options = options;
-    this._pcmData = [];
   }
 
   public async start() {
     const { sampleRate, chunkSize, vad } = this._options;
-    this._stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-    });
-    this._audioContext = new AudioContext({ sampleRate });
-    this._source = this._audioContext.createMediaStreamSource(this._stream);
-    await this._audioContext.audioWorklet.addModule(audioProcessorJs(), { credentials: 'include' });
-    this._workletNode = new AudioWorkletNode(this._audioContext, 'audio-processor', {
-      channelCount: 1, //单声道
-      channelCountMode: 'explicit', //输出通道数由 channelCount 显式指定
-      channelInterpretation: 'discrete', //通道是独立的音频流，没有特定方向（适合单声道处理）
-      processorOptions: { chunkSize },
-    });
-    this._source.connect(this._workletNode);
-    this._workletNode.connect(this._audioContext.destination);
-    this._workletNode.port.onmessage = (event) => {
-      const { e, data } = event.data;
-      if (e === 'data') {
-        if (vad) {
-          if (Recorder.isSpeak(data, sampleRate, vad)) {
-            this._pcmData.push(data);
+    try {
+      this._stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      this._audioContext = new AudioContext({ sampleRate });
+      this._source = this._audioContext.createMediaStreamSource(this._stream);
+      await this._audioContext.audioWorklet.addModule(audioProcessorJs(), {
+        credentials: 'include',
+      });
+      this._workletNode = new AudioWorkletNode(this._audioContext, 'audio-processor', {
+        channelCount: 1, //单声道
+        channelCountMode: 'explicit', //输出通道数由 channelCount 显式指定
+        channelInterpretation: 'discrete', //通道是独立的音频流，没有特定方向（适合单声道处理）
+        processorOptions: { chunkSize },
+      });
+      this._source.connect(this._workletNode);
+      this._workletNode.connect(this._audioContext.destination);
+      this._workletNode.port.onmessage = (event) => {
+        const { e, data } = event.data;
+        if (e === 'data') {
+          if (vad) {
+            if (Recorder.isSpeak(data, sampleRate, vad)) {
+              this.ondataavailable?.(data);
+            }
+          } else {
             this.ondataavailable?.(data);
           }
-        } else {
-          this._pcmData.push(data);
-          this.ondataavailable?.(data);
         }
-      }
-    };
-    this.onstart?.();
+      };
+      this.onstart?.();
+    } catch (error) {
+      console.warn(error);
+      throw error;
+    }
   }
 
   public pause() {
@@ -196,8 +198,7 @@ export class Recorder {
     this._source = undefined;
     this._workletNode = undefined;
     this._audioContext = undefined;
-    this.onstop?.(Recorder.pcmMerge(this._pcmData));
-    this._pcmData = [];
+    this.onstop?.();
   }
 
   public static pcmMerge(arrays: Int16Array[]) {

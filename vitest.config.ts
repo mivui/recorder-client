@@ -1,12 +1,7 @@
-import { defineConfig, mergeConfig } from 'vitest/config';
+import { defineConfig } from 'vitest/config';
 
-export default mergeConfig(
-  defineConfig({
- }),
-  defineConfig({
-    test: {
-      globals: true,
-      environment: 'happy-dom',
-    },
-  }),
-);
+export default defineConfig({
+  test: {
+    globals: true,
+  },
+});

@@ -28,7 +28,7 @@ npm i recorder-client
 |     onpause     |        () => void         |     pause event      |
 |    onresume     |        () => void         |     resume event     |
 |     onstart     |        () => void         |     start event      |
-|     onstop      | (pcm: Int16Array) => void |      stop event      |
+|     onstop      |        () => void         |      stop event      |
 |      pause      |        () => void         |     audio pause      |
 |     resume      |        () => void         |     audio resume     |
 |      start      |        () => void         |     audio start      |
@@ -57,7 +57,7 @@ const recorder = new Recorder({
 recorder.onstart = () => {};
 recorder.onpause = () => {};
 recorder.onresume = () => {};
-recorder.onstop = (pcm) => {};
+recorder.onstop = () => {};
 recorder.ondataavailable = (pcm) => {};
 
 const onClick = () => {
@@ -115,7 +115,7 @@ recorder.ondataavailable = (pcm) => {
   pcms.push(pcm);
 };
 
-const onMerge = () => {
+recorder.onstop = () => {
   const data = Recorder.pcmMerge(pcms);
 };
 ```
@@ -130,8 +130,15 @@ const recorder = new Recorder({
   chunkSize: 1900,
 });
 
-recorder.onstop = (pcm) => {
-  const blob = pcmToWav(pcm, 16000);
+const pcms: Int16Array[] = [];
+
+recorder.ondataavailable = (pcm) => {
+  pcms.push(pcm);
+};
+
+recorder.onstop = () => {
+  const data = Recorder.pcmMerge(pcms);
+  const blob = Recorder.pcmToWav(pcm, 16000);
 };
 ```
 
